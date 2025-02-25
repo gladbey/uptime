@@ -4,9 +4,22 @@ import requests
 import telebot
 from threading import Thread
 import os
+from flask import Flask
 
-# Render Environment Variables'dan bot token'ını al
-BOT_TOKEN = os.getenv("TOKEN")  
+def create_keep_alive():
+    app = Flask(__name__)
+    
+    @app.route('/')
+    def home():
+        return "Bot is running!"
+    
+    def run():
+        app.run(host='0.0.0.0', port=8080)
+    
+    Thread(target=run, daemon=True).start()
+
+# Bot bilgileri
+BOT_TOKEN = os.getenv("TOKEN")
 OWNER_ID = int(os.getenv("OWNER_ID", "1316760864"))  # Owner ID (sadece sen)
 ALLOWED_USERS_FILE = "allowed_users.json"
 DATA_FILE = "urls.json"  # URL'lerin saklanacağı JSON dosyası
@@ -58,7 +71,7 @@ def ping_url(url):
         return f"❌ {url} - DOWN"
 
 def start_uptime_checker():
-    """Render'daki URL'leri sürekli ping atan fonksiyon."""
+    """URL listesine sürekli ping atan fonksiyon."""
     while True:
         urls = load_urls()
         if not urls:
@@ -67,92 +80,8 @@ def start_uptime_checker():
             print(ping_url(url))
         time.sleep(INTERVAL)
 
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, "👋 Merhaba! Bu bot uptime takibi yapar. /help ile komutları görebilirsiniz.")
-
-@bot.message_handler(commands=['help'])
-def send_help(message):
-    help_text = """
-🛠 **Komut Listesi**:
-/add [URL] - Yeni bir URL ekler
-/remove [URL] - Bir URL'yi kaldırır
-/list - İzlenen URL'leri listeler
-/adduser [ID] - Kullanıcı ekler (Sadece owner)
-/removeuser [ID] - Kullanıcıyı kaldırır (Sadece owner)
-/users - Yetkili kullanıcıları listeler
-    """
-    bot.reply_to(message, help_text)
-
-@bot.message_handler(commands=['list'])
-def list_urls(message):
-    if message.chat.id not in load_users():
-        bot.reply_to(message, "🚫 Bu komutu kullanamazsınız!")
-        return
-    urls = load_urls()
-    if urls:
-        bot.reply_to(message, "📌 İzlenen URL'ler:\n" + "\n".join(urls))
-    else:
-        bot.reply_to(message, "⚠️ İzlenecek URL yok.")
-
-@bot.message_handler(commands=['add'])
-def add_command(message):
-    if message.chat.id not in load_users():
-        bot.reply_to(message, "🚫 Bu komutu kullanamazsınız!")
-        return
-    parts = message.text.split()
-    if len(parts) < 2:
-        bot.reply_to(message, "⚠️ Kullanım: /add [URL]")
-        return
-    url = parts[1]
-    urls = load_urls()
-    if url not in urls:
-        urls.append(url)
-        save_urls(urls)
-        bot.reply_to(message, f"✅ {url} eklendi!")
-    else:
-        bot.reply_to(message, "⚠️ Bu URL zaten listede.")
-
-@bot.message_handler(commands=['remove'])
-def remove_command(message):
-    if message.chat.id not in load_users():
-        bot.reply_to(message, "🚫 Bu komutu kullanamazsınız!")
-        return
-    parts = message.text.split()
-    if len(parts) < 2:
-        bot.reply_to(message, "⚠️ Kullanım: /remove [URL]")
-        return
-    url = parts[1]
-    urls = load_urls()
-    if url in urls:
-        urls.remove(url)
-        save_urls(urls)
-        bot.reply_to(message, f"✅ {url} kaldırıldı!")
-    else:
-        bot.reply_to(message, "⚠️ Bu URL listede yok.")
-
-@bot.message_handler(commands=['users'])
-def list_users(message):
-    if message.chat.id != OWNER_ID:
-        bot.reply_to(message, "🚫 Bu komutu sadece owner kullanabilir!")
-        return
-    users = load_users()
-    bot.reply_to(message, "👥 Yetkili Kullanıcılar:\n" + "\n".join(map(str, users)))
-
 if __name__ == "__main__":
-    # 🔹 Webhook'u kesin olarak kaldır
-    bot.remove_webhook()
-    time.sleep(1)  # Telegram'ın güncellemeleri sıfırlaması için kısa bir bekleme ekledik
-
-    # 🔹 Uptime checker'ı başlat
+    create_keep_alive()
     Thread(target=start_uptime_checker, daemon=True).start()
-    
     print("✅ Bot çalışıyor...")
-    
-    # 🔹 Polling için sağlam döngü
-    while True:
-        try:
-            bot.polling(none_stop=True, interval=1, timeout=20)
-        except Exception as e:
-            print(f"⚠️ Hata oluştu: {e}")
-            time.sleep(5)  # 5 saniye bekleyip tekrar başlat
+    bot.polling(none_stop=True)
