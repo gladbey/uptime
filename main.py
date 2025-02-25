@@ -15,9 +15,6 @@ INTERVAL = 300  # Ping atma süresi (saniye)
 # Botu başlat
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Webhook'u temizle (Polling çakışmasını önler)
-bot.remove_webhook()
-
 # JSON dosyaları otomatik oluşturulsun
 def ensure_json_exists(file, default_data):
     """Eğer JSON dosyası yoksa, belirtilen varsayılan veriyle oluşturur."""
@@ -134,42 +131,6 @@ def remove_command(message):
     else:
         bot.reply_to(message, "⚠️ Bu URL listede yok.")
 
-@bot.message_handler(commands=['adduser'])
-def add_user(message):
-    if message.chat.id != OWNER_ID:
-        bot.reply_to(message, "🚫 Bu komutu sadece owner kullanabilir!")
-        return
-    parts = message.text.split()
-    if len(parts) < 2:
-        bot.reply_to(message, "⚠️ Kullanım: /adduser [ID]")
-        return
-    user_id = int(parts[1])
-    users = load_users()
-    if user_id not in users:
-        users.append(user_id)
-        save_users(users)
-        bot.reply_to(message, f"✅ Kullanıcı {user_id} eklendi!")
-    else:
-        bot.reply_to(message, "⚠️ Bu kullanıcı zaten ekli.")
-
-@bot.message_handler(commands=['removeuser'])
-def remove_user(message):
-    if message.chat.id != OWNER_ID:
-        bot.reply_to(message, "🚫 Bu komutu sadece owner kullanabilir!")
-        return
-    parts = message.text.split()
-    if len(parts) < 2:
-        bot.reply_to(message, "⚠️ Kullanım: /removeuser [ID]")
-        return
-    user_id = int(parts[1])
-    users = load_users()
-    if user_id in users:
-        users.remove(user_id)
-        save_users(users)
-        bot.reply_to(message, f"✅ Kullanıcı {user_id} kaldırıldı!")
-    else:
-        bot.reply_to(message, "⚠️ Bu kullanıcı listede yok.")
-
 @bot.message_handler(commands=['users'])
 def list_users(message):
     if message.chat.id != OWNER_ID:
@@ -179,8 +140,19 @@ def list_users(message):
     bot.reply_to(message, "👥 Yetkili Kullanıcılar:\n" + "\n".join(map(str, users)))
 
 if __name__ == "__main__":
-    # Webhook'u kaldırıp, Uptime Checker başlat
+    # 🔹 Webhook'u kesin olarak kaldır
     bot.remove_webhook()
+    time.sleep(1)  # Telegram'ın güncellemeleri sıfırlaması için kısa bir bekleme ekledik
+
+    # 🔹 Uptime checker'ı başlat
     Thread(target=start_uptime_checker, daemon=True).start()
+    
     print("✅ Bot çalışıyor...")
-    bot.polling(none_stop=True, skip_pending=True)
+    
+    # 🔹 Polling için sağlam döngü
+    while True:
+        try:
+            bot.polling(none_stop=True, interval=1, timeout=20)
+        except Exception as e:
+            print(f"⚠️ Hata oluştu: {e}")
+            time.sleep(5)  # 5 saniye bekleyip tekrar başlat
