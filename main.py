@@ -7,7 +7,7 @@ import os
 
 # Bot bilgileri
 BOT_TOKEN = "7700764678:AAE_wWzg68yjcf-xFOsAWIy5Sb6JdhVSUc4"
-OWNER_ID = 1316760864  # Owner ID (sadece Berat)
+OWNER_ID = 1316760864  # Owner ID (sadece )
 
 data_file = "urls.json"  # URL'lerin saklanacağı JSON dosyası
 interval = 300  # Ping atma süresi (saniye)
